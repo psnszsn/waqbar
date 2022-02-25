@@ -1,0 +1,5 @@
+zig-out
+zig-cache
+xdg_shell.c
+test.c
+leak.txt

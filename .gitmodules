@@ -1,0 +1,3 @@
+[submodule "deps/waq"]
+	path = deps/waq
+	url = git@github.com:psnszsn/waq.git
