@@ -35,17 +35,39 @@ pub fn main() anyerror!void {
         } },
         .{
             Label,
-            .{ .name = "btn2", .text = "ABRACADABRA", .flex_factor = 0 },
+            .{ .name = "btn2", .text = "Sarmale reci qqjga", .flex_factor = 0 },
         },
     } });
 
-    // const btn = try Button.init(app);
+    const button1 = layout.findChildOfType(Button, "btn1").?;
+    const button2 = layout.findChildOfType(Button, "btn2").?;
 
-    // const fm = layout.findChildOfType(FontMap, "font_map").?;
-    // const spacer = layout.findChildOfType(Flex.Spacer, "spacer").?;
-
-    _ = try app.createLayerSurface(layout.widget, .{ .top = true, .right = true, .left = true });
+    const layer_surface = try app.createLayerSurface(layout.widget, .{ .top = true, .right = true, .left = true });
     // _ = try app.createWindow(layout.widget);
+
+
+    var b = try Button.init(app);
+    var rects = try layout.getChildRectTrace(button2.widget);
+    defer rects.deinit();
+
+    // // std.debug.print("{}\n", .{rects});
+
+    const s = try waq.Popover.init(
+        app,
+        b.widget,
+        rects.items,
+        .{ .layer_surface = layer_surface },
+    );
+
+    button1.onClick = Widget.Callback.init(
+        button1,
+        s,
+        struct {
+            fn click(_: *Button, ss: *waq.Popover) void {
+                ss.toggle() catch unreachable;
+            }
+        }.click,
+    );
 
     try app.run();
 }
