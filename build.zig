@@ -17,13 +17,20 @@ pub fn build(b: *Builder) void {
     scanner.addSystemProtocol("stable/xdg-shell/xdg-shell.xml");
     scanner.addProtocolPath("deps/waq/protocol/wlr-layer-shell-unstable-v1.xml");
 
+    scanner.generate("wl_compositor", 1);
+    scanner.generate("wl_shm", 1);
+    scanner.generate("wl_seat", 7);
+    scanner.generate("wl_output", 4);
+    scanner.generate("xdg_wm_base", 2);
+    scanner.generate("zwlr_layer_shell_v1", 4);
+
     const wayland = std.build.Pkg{
         .name = "wayland",
-        .path = .{ .generated = &scanner.result },
+        .source = .{ .generated = &scanner.result },
     };
     const waq = std.build.Pkg{
         .name = "waq",
-        .path = .{ .path = "./deps/waq/src/lib.zig" },
+        .source = .{ .path = "./deps/waq/src/lib.zig" },
         .dependencies = &[_]std.build.Pkg{wayland},
     };
 
