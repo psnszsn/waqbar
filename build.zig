@@ -1,21 +1,17 @@
 const std = @import("std");
 const Builder = std.build.Builder;
 const ScanProtocolsStep = @import("deps/waq/deps/zig-wayland/build.zig").ScanProtocolsStep;
+const Scanner = @import("deps/waq/deps/zig-wayland/build.zig").Scanner;
 
 pub fn build(b: *Builder) void {
-    // Standard target options allows the person running `zig build` to choose
-    // what target to build for. Here we do not override the defaults, which
-    // means any target is allowed, and the default is native. Other options
-    // for restricting supported target set are available.
     const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
 
-    // Standard release options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
-    const mode = b.standardReleaseOptions();
+    const scanner = Scanner.create(b, .{});
+    const wayland = b.createModule(.{ .source_file = scanner.result });
 
-    const scanner = ScanProtocolsStep.create(b);
     scanner.addSystemProtocol("stable/xdg-shell/xdg-shell.xml");
-    scanner.addProtocolPath("deps/waq/protocol/wlr-layer-shell-unstable-v1.xml");
+    scanner.addCustomProtocol("deps/waq/protocol/wlr-layer-shell-unstable-v1.xml");
 
     scanner.generate("wl_compositor", 1);
     scanner.generate("wl_shm", 1);
@@ -24,34 +20,39 @@ pub fn build(b: *Builder) void {
     scanner.generate("xdg_wm_base", 2);
     scanner.generate("zwlr_layer_shell_v1", 4);
 
-    const wayland = std.build.Pkg{
-        .name = "wayland",
-        .source = .{ .generated = &scanner.result },
-    };
-    const waq = std.build.Pkg{
-        .name = "waq",
-        .source = .{ .path = "./deps/waq/src/lib.zig" },
-        .dependencies = &[_]std.build.Pkg{wayland},
-    };
+    const waq = b.createModule(.{
+        .source_file = .{ .path = "./deps/waq/src/lib.zig" },
+        .dependencies = &.{.{ .name = "wayland", .module = wayland }},
+    });
 
-    const exe = b.addExecutable("waqbar", "src/main.zig");
-    exe.setTarget(target);
-    exe.setBuildMode(mode);
+    const exe = b.addExecutable(.{
+        .name = "waqbar",
+        .root_source_file = .{ .path = "./src/main.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
 
-    exe.step.dependOn(&scanner.step);
-    exe.addPackage(waq);
-
+    exe.addModule("waq", waq);
+    scanner.addCSource(exe);
     exe.linkLibC();
     exe.linkSystemLibrary("wayland-client");
 
-    // TODO: remove when https://github.com/ziglang/zig/issues/131 is implemented
-    scanner.addCSource(exe);
+    b.installArtifact(exe);
 
-    exe.install();
-
-    const run_cmd = exe.run();
+    const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
 
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
+
+    const unit_tests = b.addTest(.{
+        .root_source_file = .{ .path = "src/main.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const run_unit_tests = b.addRunArtifact(unit_tests);
+
+    const test_step = b.step("test", "Run unit tests");
+    test_step.dependOn(&run_unit_tests.step);
 }
